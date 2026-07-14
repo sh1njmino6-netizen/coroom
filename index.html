@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>coroom — 회의실 예약</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ===================== 로그인 / 회원가입 ===================== -->
+<div id="authSection" class="auth-wrap">
+  <div class="auth-card">
+    <h1 class="logo">coroom</h1>
+    <p class="tagline">사내 회의실 예약 시스템</p>
+
+    <div class="auth-tabs">
+      <button type="button" class="auth-tab-btn active" data-auth-tab="login">로그인</button>
+      <button type="button" class="auth-tab-btn" data-auth-tab="signup">회원가입</button>
+    </div>
+
+    <form id="loginForm" class="auth-form">
+      <label>이메일
+        <input type="email" id="loginEmail" required autocomplete="username" />
+      </label>
+      <label>비밀번호
+        <input type="password" id="loginPassword" required autocomplete="current-password" />
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">로그인</button>
+    </form>
+
+    <form id="signupForm" class="auth-form hidden">
+      <label>이름
+        <input type="text" id="signupName" required autocomplete="name" placeholder="예: 홍길동" />
+      </label>
+      <label>이메일
+        <input type="email" id="signupEmail" required autocomplete="username" />
+      </label>
+      <label>비밀번호
+        <input type="password" id="signupPassword" required autocomplete="new-password" minlength="6" placeholder="6자 이상" />
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">회원가입</button>
+    </form>
+
+    <p id="authMessage" class="auth-message hidden"></p>
+  </div>
+</div>
+
+<!-- ===================== 메인 앱 ===================== -->
+<div id="appSection" class="app-wrap hidden">
+
+  <header class="topbar">
+    <div class="date-nav">
+      <button type="button" id="prevDayBtn" class="icon-btn" title="이전 날">‹</button>
+      <input type="date" id="datePicker" />
+      <span id="dateLabel" class="date-label"></span>
+      <button type="button" id="nextDayBtn" class="icon-btn" title="다음 날">›</button>
+      <button type="button" id="todayBtn" class="btn btn-ghost">오늘</button>
+    </div>
+
+    <nav class="tabs">
+      <button type="button" class="tab-btn active" data-tab="dashboard">대시보드</button>
+      <button type="button" class="tab-btn" data-tab="my">내 예약</button>
+    </nav>
+
+    <div class="user-info">
+      <span id="userLabel" class="user-label"></span>
+      <button type="button" id="logoutBtn" class="btn btn-ghost">로그아웃</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 대시보드: 회의실 x 시간 그리드 -->
+    <section id="dashboardView" class="view">
+      <div id="loadingIndicator" class="loading-indicator hidden">불러오는 중…</div>
+      <div id="gridWrap" class="grid-wrap">
+        <div id="grid" class="grid"></div>
+      </div>
+      <p class="legend">빈 칸을 클릭하면 예약할 수 있습니다. 예약된 칸을 클릭하면 상세 정보를 볼 수 있습니다.</p>
+    </section>
+
+    <!-- 내 예약 목록 -->
+    <section id="myReservationsView" class="view hidden">
+      <h2>내 예약</h2>
+      <table class="my-res-table">
+        <thead>
+          <tr>
+            <th>예약번호</th>
+            <th>회의실</th>
+            <th>날짜</th>
+            <th>시간</th>
+            <th>제목</th>
+            <th>부서</th>
+            <th>상태</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="myReservationsBody">
+        </tbody>
+      </table>
+      <p id="myReservationsEmpty" class="empty-msg hidden">아직 예약한 내역이 없습니다.</p>
+    </section>
+  </main>
+</div>
+
+<!-- ===================== 예약 생성 모달 ===================== -->
+<div id="reservationModalOverlay" class="modal-overlay hidden">
+  <div class="modal">
+    <h2>회의실 예약</h2>
+    <form id="reservationForm">
+      <div class="form-row">
+        <label>회의실</label>
+        <input type="text" id="resRoomName" readonly />
+      </div>
+      <div class="form-row">
+        <label>날짜</label>
+        <input type="text" id="resDate" readonly />
+      </div>
+      <div class="form-row two-col">
+        <div>
+          <label>시작 시간</label>
+          <select id="resStartTime"></select>
+        </div>
+        <div>
+          <label>종료 시간</label>
+          <select id="resEndTime"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>회의 제목 <span class="required">*</span></label>
+        <input type="text" id="resTitle" required placeholder="예: 주간 팀 회의" />
+      </div>
+      <div class="form-row">
+        <label>부서 <span class="required">*</span></label>
+        <input type="text" id="resDepartment" required placeholder="예: 마케팅팀" />
+      </div>
+      <div class="form-row">
+        <label>예약자</label>
+        <input type="text" id="resReserverName" readonly />
+      </div>
+      <p id="reservationFormError" class="form-error hidden"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="reservationCancelBtn">취소</button>
+        <button type="submit" class="btn btn-primary" id="reservationSubmitBtn">예약하기</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== 예약 상세 모달 ===================== -->
+<div id="detailModalOverlay" class="modal-overlay hidden">
+  <div class="modal">
+    <h2>예약 상세</h2>
+    <dl class="detail-list">
+      <dt>회의실</dt><dd id="detailRoomName"></dd>
+      <dt>제목</dt><dd id="detailTitle"></dd>
+      <dt>예약자</dt><dd id="detailReserver"></dd>
+      <dt>부서</dt><dd id="detailDepartment"></dd>
+      <dt>날짜</dt><dd id="detailDate"></dd>
+      <dt>시간</dt><dd id="detailTime"></dd>
+      <dt>상태</dt><dd id="detailStatus"></dd>
+    </dl>
+    <p id="detailError" class="form-error hidden"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="detailCloseBtn">닫기</button>
+      <button type="button" class="btn btn-danger hidden" id="detailCancelReservationBtn">예약 취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 알림 -->
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabaseClient.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
