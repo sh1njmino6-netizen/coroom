@@ -5,9 +5,9 @@
 
   // ===================== 상수 =====================
   const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-  const SLOT_WIDTH_PX = 60; // style.css의 --slot-width 값과 일치해야 함
   const DAY_START_HOUR = 9;
   const DAY_END_HOUR = 18;
+  const CACHE_PREFIX = "coroom:cache:";
 
   const ALL_TIMES = generateHalfHourTimes(DAY_START_HOUR, DAY_END_HOUR); // 09:00 ~ 18:00 (30분 단위)
   const SLOT_STARTS = ALL_TIMES.slice(0, -1); // 09:00 ~ 17:30 (실제 클릭 가능한 칸)
@@ -78,6 +78,30 @@
     }[ch]));
   }
 
+  function getSlotWidthPx() {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue("--slot-width");
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : 60;
+  }
+
+  // ===================== 오프라인 캐시 =====================
+  function saveCache(key, value) {
+    try {
+      localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value));
+    } catch (e) {
+      /* 저장 실패(프라이빗 모드 등)는 무시 */
+    }
+  }
+
+  function loadCache(key) {
+    try {
+      const raw = localStorage.getItem(CACHE_PREFIX + key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // ===================== 초기화 =====================
   document.addEventListener("DOMContentLoaded", init);
 
@@ -91,10 +115,27 @@
       return;
     }
 
+    // 오프라인이거나 네트워크가 느려도 마지막으로 불러온 화면이 즉시 보이도록,
+    // 네트워크 요청 전에 캐시된 데이터로 먼저 그린다.
+    hydrateFromCache();
+
     loadRooms().then(() => {
       setDate(new Date());
       subscribeRealtime();
     });
+  }
+
+  function hydrateFromCache() {
+    const cachedRooms = loadCache("rooms");
+    if (cachedRooms && cachedRooms.length) {
+      state.rooms = cachedRooms;
+      const dateStr = formatDateYMD(state.currentDate);
+      el.datePicker.value = dateStr;
+      el.dateLabel.textContent = formatDateLabel(state.currentDate);
+      const cachedReservations = loadCache("reservations:" + dateStr);
+      state.reservationsForDate = cachedReservations || [];
+      renderGrid();
+    }
   }
 
   function cacheDom() {
@@ -156,15 +197,45 @@
     el.detailModalOverlay.addEventListener("click", (e) => {
       if (e.target === el.detailModalOverlay) hideModal(el.detailModalOverlay);
     });
+
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (state.rooms.length) renderGrid();
+      }, 150);
+    });
+  }
+
+  const NETWORK_TIMEOUT_MS = 4000;
+
+  function withAbortTimeout(ms) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    return { signal: controller.signal, clear: () => clearTimeout(timer) };
   }
 
   async function loadRooms() {
-    const { data, error } = await supabaseClient.from("rooms").select("*").order("id");
-    if (error) {
-      toast("회의실 정보를 불러오지 못했습니다: " + error.message, "error");
-      return;
+    const { signal, clear } = withAbortTimeout(NETWORK_TIMEOUT_MS);
+    try {
+      const { data, error } = await supabaseClient.from("rooms").select("*").order("id").abortSignal(signal);
+      clear();
+      if (error) throw error;
+      state.rooms = data || [];
+      saveCache("rooms", state.rooms);
+    } catch (err) {
+      clear();
+      const cached = loadCache("rooms");
+      if (cached && cached.length) {
+        state.rooms = cached;
+      } else if (!state.rooms.length) {
+        toast("회의실 정보를 불러오지 못했습니다: " + errorMessage(err), "error");
+      }
     }
-    state.rooms = data || [];
+  }
+
+  function errorMessage(err) {
+    return (err && err.message) || String(err);
   }
 
   // ===================== 날짜 이동 =====================
@@ -183,16 +254,27 @@
 
   // ===================== 대시보드 / 그리드 =====================
   async function fetchReservationsForDate(dateStr) {
-    const { data, error } = await supabaseClient
-      .from("reservations")
-      .select("*")
-      .eq("reservation_date", dateStr)
-      .eq("status", "confirmed");
-    if (error) {
-      toast("예약 정보를 불러오지 못했습니다: " + error.message, "error");
+    const cacheKey = "reservations:" + dateStr;
+    const { signal, clear } = withAbortTimeout(NETWORK_TIMEOUT_MS);
+    try {
+      const { data, error } = await supabaseClient
+        .from("reservations")
+        .select("*")
+        .eq("reservation_date", dateStr)
+        .eq("status", "confirmed")
+        .abortSignal(signal);
+      clear();
+      if (error) throw error;
+      const result = data || [];
+      saveCache(cacheKey, result);
+      return result;
+    } catch (err) {
+      clear();
+      const cached = loadCache(cacheKey);
+      if (cached) return cached;
+      toast("예약 정보를 불러오지 못했습니다: " + errorMessage(err), "error");
       return [];
     }
-    return data || [];
   }
 
   async function refreshDashboard() {
@@ -211,6 +293,7 @@
   function renderGrid() {
     const grid = el.grid;
     grid.innerHTML = "";
+    const slotWidthPx = getSlotWidthPx();
 
     // 헤더
     const headerRow = document.createElement("div");
@@ -283,8 +366,8 @@
 
         const block = document.createElement("div");
         block.className = "reservation-block room-color-" + room.id;
-        block.style.left = startIdx * SLOT_WIDTH_PX + "px";
-        block.style.width = Math.max(numSlots * SLOT_WIDTH_PX - 4, 24) + "px";
+        block.style.left = startIdx * slotWidthPx + "px";
+        block.style.width = Math.max(numSlots * slotWidthPx - 4, 24) + "px";
         block.innerHTML =
           `<span class="r-title">${escapeHtml(r.title)}</span>` +
           `<span class="r-reserver">${escapeHtml(r.reserver_name)}</span>`;
@@ -465,6 +548,8 @@
   // ===================== 모달 공통 =====================
   function showModal(overlay) {
     overlay.classList.remove("hidden");
+    const installBanner = document.getElementById("installBanner");
+    if (installBanner) installBanner.classList.add("hidden");
   }
 
   function hideModal(overlay) {
