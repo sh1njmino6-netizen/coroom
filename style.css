@@ -20,6 +20,7 @@ html, body {
   font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   color: var(--color-text);
   background: var(--color-bg);
+  overflow-x: hidden;
 }
 
 .hidden { display: none !important; }
@@ -27,6 +28,60 @@ html, body {
 button {
   font-family: inherit;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ===================== Status banners (offline / install) ===================== */
+.status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  font-size: 13px;
+}
+
+.offline-banner {
+  background: #fff3cd;
+  color: #7a5b00;
+  padding-top: max(10px, env(safe-area-inset-top));
+}
+
+.install-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 300;
+  background: var(--color-text);
+  color: #fff;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.15);
+}
+
+.install-banner span {
+  flex: 1;
+}
+
+.install-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.install-banner .icon-btn {
+  background: transparent;
+  border-color: rgba(255,255,255,0.35);
+  color: #fff;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 12px;
 }
 
 .logo {
@@ -89,6 +144,8 @@ button {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 20px;
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
   background: #fff;
   border-bottom: 1px solid var(--color-border);
   flex-wrap: wrap;
@@ -137,6 +194,7 @@ main {
 /* ===================== Grid ===================== */
 .grid-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -396,17 +454,20 @@ main {
 /* ===================== Toast ===================== */
 .toast-container {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: max(20px, env(safe-area-inset-top));
+  right: max(20px, env(safe-area-inset-right));
+  left: max(20px, env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
   z-index: 200;
+  pointer-events: none;
 }
 
 .toast {
   min-width: 220px;
-  max-width: 320px;
+  max-width: min(320px, 100%);
   padding: 12px 16px;
   border-radius: 6px;
   font-size: 13px;
@@ -423,3 +484,63 @@ main {
 .toast-info { background: #33415c; }
 .toast-success { background: #2a7a2f; }
 .toast-error { background: var(--color-danger); }
+
+/* ===================== Mobile ===================== */
+@media (max-width: 600px) {
+  :root {
+    --room-col-width: 138px;
+    --slot-width: 52px;
+  }
+
+  .topbar {
+    gap: 10px;
+  }
+
+  .logo {
+    width: 100%;
+  }
+
+  .date-nav {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+  }
+
+  .date-label {
+    display: none;
+  }
+
+  #datePicker {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .date-nav .btn-ghost {
+    flex-shrink: 0;
+  }
+
+  main {
+    padding: 12px;
+  }
+
+  .modal {
+    width: 100%;
+    padding: 20px;
+  }
+
+  .form-row.two-col {
+    flex-direction: column;
+  }
+
+  .btn, .icon-btn, .tab-btn {
+    min-height: 40px;
+  }
+
+  .toast-container {
+    align-items: stretch;
+  }
+
+  .toast {
+    max-width: none;
+  }
+}
