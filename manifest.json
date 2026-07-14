@@ -1,0 +1,16 @@
+{
+  "name": "coroom - 회의실 예약",
+  "short_name": "coroom",
+  "description": "회의실 예약 현황을 한눈에 보고 빈 시간에 바로 예약하는 사내 회의실 예약 시스템",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#3563e9",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
