@@ -14,17 +14,13 @@
 
   // ===================== 상태 =====================
   const state = {
-    user: null,
     rooms: [],
     reservationsForDate: [],
     currentDate: new Date(),
-    activeTab: "dashboard",
-    myReservations: [],
     realtimeChannel: null,
     pendingReservationContext: null,
   };
 
-  let dashboardReady = false;
   let el = {};
 
   // ===================== 유틸 함수 =====================
@@ -82,11 +78,6 @@
     }[ch]));
   }
 
-  function getReserverDisplayName() {
-    if (!state.user) return "";
-    return (state.user.user_metadata && state.user.user_metadata.full_name) || state.user.email || "";
-  }
-
   // ===================== 초기화 =====================
   document.addEventListener("DOMContentLoaded", init);
 
@@ -96,45 +87,26 @@
     buildStartOptions();
 
     if (!window.supabaseClient) {
-      showAuthMessage("Supabase 클라이언트를 초기화하지 못했습니다. 설정을 확인해주세요.", "error");
+      toast("Supabase 클라이언트를 초기화하지 못했습니다. 설정을 확인해주세요.", "error");
       return;
     }
 
-    supabaseClient.auth.onAuthStateChange(handleAuthStateChange);
+    loadRooms().then(() => {
+      setDate(new Date());
+      subscribeRealtime();
+    });
   }
 
   function cacheDom() {
     el = {
-      authSection: document.getElementById("authSection"),
-      appSection: document.getElementById("appSection"),
-
-      loginForm: document.getElementById("loginForm"),
-      loginEmail: document.getElementById("loginEmail"),
-      loginPassword: document.getElementById("loginPassword"),
-
-      signupForm: document.getElementById("signupForm"),
-      signupName: document.getElementById("signupName"),
-      signupEmail: document.getElementById("signupEmail"),
-      signupPassword: document.getElementById("signupPassword"),
-
-      authMessage: document.getElementById("authMessage"),
-
       prevDayBtn: document.getElementById("prevDayBtn"),
       nextDayBtn: document.getElementById("nextDayBtn"),
       todayBtn: document.getElementById("todayBtn"),
       datePicker: document.getElementById("datePicker"),
       dateLabel: document.getElementById("dateLabel"),
 
-      userLabel: document.getElementById("userLabel"),
-      logoutBtn: document.getElementById("logoutBtn"),
-
-      dashboardView: document.getElementById("dashboardView"),
-      myReservationsView: document.getElementById("myReservationsView"),
       loadingIndicator: document.getElementById("loadingIndicator"),
       grid: document.getElementById("grid"),
-
-      myReservationsBody: document.getElementById("myReservationsBody"),
-      myReservationsEmpty: document.getElementById("myReservationsEmpty"),
 
       reservationModalOverlay: document.getElementById("reservationModalOverlay"),
       reservationForm: document.getElementById("reservationForm"),
@@ -166,23 +138,11 @@
   }
 
   function bindStaticEvents() {
-    document.querySelectorAll(".auth-tab-btn").forEach((btn) => {
-      btn.addEventListener("click", () => switchAuthTab(btn.dataset.authTab));
-    });
-
-    el.loginForm.addEventListener("submit", handleLoginSubmit);
-    el.signupForm.addEventListener("submit", handleSignupSubmit);
-    el.logoutBtn.addEventListener("click", handleLogout);
-
     el.prevDayBtn.addEventListener("click", () => changeDate(-1));
     el.nextDayBtn.addEventListener("click", () => changeDate(1));
     el.todayBtn.addEventListener("click", () => setDate(new Date()));
     el.datePicker.addEventListener("change", (e) => {
       if (e.target.value) setDate(parseDateYMD(e.target.value));
-    });
-
-    document.querySelectorAll(".tab-btn").forEach((btn) => {
-      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
 
     el.resStartTime.addEventListener("change", () => buildEndOptions(el.resStartTime.value));
@@ -198,122 +158,6 @@
     });
   }
 
-  // ===================== 인증 =====================
-  function handleAuthStateChange(_event, session) {
-    state.user = (session && session.user) || null;
-    renderAuthState();
-
-    if (state.user && !dashboardReady) {
-      dashboardReady = true;
-      onLoggedIn();
-    } else if (!state.user && dashboardReady) {
-      dashboardReady = false;
-      onLoggedOut();
-    }
-  }
-
-  function renderAuthState() {
-    if (state.user) {
-      el.authSection.classList.add("hidden");
-      el.appSection.classList.remove("hidden");
-      el.userLabel.textContent = getReserverDisplayName();
-    } else {
-      el.authSection.classList.remove("hidden");
-      el.appSection.classList.add("hidden");
-    }
-  }
-
-  async function handleLoginSubmit(e) {
-    e.preventDefault();
-    hideAuthMessage();
-    const email = el.loginEmail.value.trim();
-    const password = el.loginPassword.value;
-    setFormDisabled(el.loginForm, true);
-    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    setFormDisabled(el.loginForm, false);
-    if (error) {
-      showAuthMessage(translateAuthError(error), "error");
-    }
-  }
-
-  async function handleSignupSubmit(e) {
-    e.preventDefault();
-    hideAuthMessage();
-    const name = el.signupName.value.trim();
-    const email = el.signupEmail.value.trim();
-    const password = el.signupPassword.value;
-    setFormDisabled(el.signupForm, true);
-    const { data, error } = await supabaseClient.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: name } },
-    });
-    setFormDisabled(el.signupForm, false);
-    if (error) {
-      showAuthMessage(translateAuthError(error), "error");
-      return;
-    }
-    if (data && data.session) {
-      showAuthMessage("회원가입이 완료되었습니다.", "success");
-    } else {
-      showAuthMessage("회원가입이 완료되었습니다. 이메일 인증 후 로그인해주세요.", "success");
-      switchAuthTab("login");
-    }
-  }
-
-  async function handleLogout() {
-    await supabaseClient.auth.signOut();
-  }
-
-  function switchAuthTab(tab) {
-    document.querySelectorAll(".auth-tab-btn").forEach((b) => {
-      b.classList.toggle("active", b.dataset.authTab === tab);
-    });
-    el.loginForm.classList.toggle("hidden", tab !== "login");
-    el.signupForm.classList.toggle("hidden", tab !== "signup");
-    hideAuthMessage();
-  }
-
-  function showAuthMessage(msg, type) {
-    el.authMessage.textContent = msg;
-    el.authMessage.className = "auth-message " + type;
-    el.authMessage.classList.remove("hidden");
-  }
-
-  function hideAuthMessage() {
-    el.authMessage.classList.add("hidden");
-  }
-
-  function translateAuthError(error) {
-    const msg = (error && error.message) || "알 수 없는 오류가 발생했습니다.";
-    if (msg.includes("Invalid login credentials")) return "이메일 또는 비밀번호가 올바르지 않습니다.";
-    if (msg.includes("already registered") || msg.includes("already exists")) return "이미 가입된 이메일입니다.";
-    if (msg.toLowerCase().includes("password")) return "비밀번호는 6자 이상이어야 합니다.";
-    if (msg.includes("valid email")) return "올바른 이메일 형식이 아닙니다.";
-    return msg;
-  }
-
-  function setFormDisabled(form, disabled) {
-    Array.from(form.elements).forEach((elm) => (elm.disabled = disabled));
-  }
-
-  // ===================== 로그인 이후 초기화 =====================
-  async function onLoggedIn() {
-    await loadRooms();
-    setDate(new Date());
-    subscribeRealtime();
-    switchTab("dashboard");
-  }
-
-  function onLoggedOut() {
-    unsubscribeRealtime();
-    state.rooms = [];
-    state.reservationsForDate = [];
-    state.myReservations = [];
-    el.grid.innerHTML = "";
-    el.myReservationsBody.innerHTML = "";
-  }
-
   async function loadRooms() {
     const { data, error } = await supabaseClient.from("rooms").select("*").order("id");
     if (error) {
@@ -321,17 +165,6 @@
       return;
     }
     state.rooms = data || [];
-  }
-
-  // ===================== 탭 전환 =====================
-  function switchTab(tab) {
-    state.activeTab = tab;
-    el.dashboardView.classList.toggle("hidden", tab !== "dashboard");
-    el.myReservationsView.classList.toggle("hidden", tab !== "my");
-    document.querySelectorAll(".tab-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.tab === tab);
-    });
-    if (tab === "my") refreshMyReservations();
   }
 
   // ===================== 날짜 이동 =====================
@@ -481,7 +314,6 @@
   }
 
   function handleSlotClick(room, startTime) {
-    if (!state.user) return;
     state.pendingReservationContext = { room };
     el.resRoomName.value = room.name;
     el.resDate.value = formatDateYMD(state.currentDate);
@@ -490,7 +322,7 @@
     buildEndOptions(startTime);
     el.resTitle.value = "";
     el.resDepartment.value = "";
-    el.resReserverName.value = getReserverDisplayName();
+    el.resReserverName.value = "";
     hideFormError();
     showModal(el.reservationModalOverlay);
   }
@@ -507,9 +339,10 @@
     const endTime = el.resEndTime.value;
     const title = el.resTitle.value.trim();
     const department = el.resDepartment.value.trim();
+    const reserverName = el.resReserverName.value.trim();
 
-    if (!title || !department) {
-      showFormError("회의 제목과 부서를 입력해주세요.");
+    if (!title || !department || !reserverName) {
+      showFormError("예약자, 회의 제목, 부서를 모두 입력해주세요.");
       return;
     }
     if (timeToMinutes(endTime) <= timeToMinutes(startTime)) {
@@ -526,8 +359,7 @@
       const { error } = await supabaseClient.from("reservations").insert({
         reservation_code: code,
         room_id: room.id,
-        user_id: state.user.id,
-        reserver_name: getReserverDisplayName(),
+        reserver_name: reserverName,
         department,
         title,
         reservation_date: dateStr,
@@ -559,7 +391,6 @@
     hideModal(el.reservationModalOverlay);
     toast("예약이 완료되었습니다.", "success");
     await refreshDashboard();
-    if (state.activeTab === "my") await refreshMyReservations();
   }
 
   function showFormError(msg) {
@@ -569,6 +400,10 @@
 
   function hideFormError() {
     el.reservationFormError.classList.add("hidden");
+  }
+
+  function setFormDisabled(form, disabled) {
+    Array.from(form.elements).forEach((elm) => (elm.disabled = disabled));
   }
 
   // ===================== 예약 상세 모달 =====================
@@ -582,21 +417,18 @@
     el.detailStatus.textContent = reservation.status === "confirmed" ? "확정" : "취소됨";
     hideDetailError();
 
-    const isOwner = !!(state.user && reservation.user_id === state.user.id);
-    const canCancel = isOwner && reservation.status === "confirmed";
-    el.detailCancelReservationBtn.classList.toggle("hidden", !canCancel);
-    el.detailCancelReservationBtn.onclick = () => cancelReservationFromDetail(reservation.id);
+    el.detailCancelReservationBtn.classList.toggle("hidden", reservation.status !== "confirmed");
+    el.detailCancelReservationBtn.onclick = () => cancelReservation(reservation.id);
 
     showModal(el.detailModalOverlay);
   }
 
-  async function cancelReservationFromDetail(id) {
+  async function cancelReservation(id) {
     if (!window.confirm("이 예약을 취소하시겠습니까?")) return;
     const { error } = await supabaseClient
       .from("reservations")
       .update({ status: "cancelled" })
-      .eq("id", id)
-      .eq("user_id", state.user.id);
+      .eq("id", id);
     if (error) {
       showDetailError("취소에 실패했습니다: " + error.message);
       return;
@@ -604,7 +436,6 @@
     hideModal(el.detailModalOverlay);
     toast("예약이 취소되었습니다.", "success");
     await refreshDashboard();
-    if (state.activeTab === "my") await refreshMyReservations();
   }
 
   function showDetailError(msg) {
@@ -614,75 +445,6 @@
 
   function hideDetailError() {
     el.detailError.classList.add("hidden");
-  }
-
-  // ===================== 내 예약 =====================
-  async function refreshMyReservations() {
-    if (!state.user) return;
-    const { data, error } = await supabaseClient
-      .from("reservations")
-      .select("*, rooms(name)")
-      .eq("user_id", state.user.id)
-      .order("reservation_date", { ascending: false })
-      .order("start_time", { ascending: false });
-    if (error) {
-      toast("내 예약을 불러오지 못했습니다: " + error.message, "error");
-      return;
-    }
-    state.myReservations = data || [];
-    renderMyReservations();
-  }
-
-  function renderMyReservations() {
-    const body = el.myReservationsBody;
-    body.innerHTML = "";
-
-    el.myReservationsEmpty.classList.toggle("hidden", state.myReservations.length !== 0);
-
-    state.myReservations.forEach((r) => {
-      const tr = document.createElement("tr");
-      const statusClass = r.status === "confirmed" ? "status-confirmed" : "status-cancelled";
-      const statusText = r.status === "confirmed" ? "확정" : "취소";
-      const roomName = (r.rooms && r.rooms.name) || "-";
-
-      tr.innerHTML = `
-        <td>${escapeHtml(r.reservation_code)}</td>
-        <td>${escapeHtml(roomName)}</td>
-        <td>${escapeHtml(r.reservation_date)}</td>
-        <td>${r.start_time.slice(0, 5)} - ${r.end_time.slice(0, 5)}</td>
-        <td>${escapeHtml(r.title)}</td>
-        <td>${escapeHtml(r.department)}</td>
-        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-        <td></td>
-      `;
-
-      if (r.status === "confirmed") {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "btn btn-danger";
-        btn.textContent = "취소";
-        btn.addEventListener("click", () => cancelMyReservation(r.id));
-        tr.lastElementChild.appendChild(btn);
-      }
-
-      body.appendChild(tr);
-    });
-  }
-
-  async function cancelMyReservation(id) {
-    if (!window.confirm("이 예약을 취소하시겠습니까?")) return;
-    const { error } = await supabaseClient
-      .from("reservations")
-      .update({ status: "cancelled" })
-      .eq("id", id)
-      .eq("user_id", state.user.id);
-    if (error) {
-      toast("취소에 실패했습니다: " + error.message, "error");
-      return;
-    }
-    toast("예약이 취소되었습니다.", "success");
-    await refreshMyReservations();
-    await refreshDashboard();
   }
 
   // ===================== 실시간 동기화 =====================
@@ -695,17 +457,9 @@
         { event: "*", schema: "public", table: "reservations" },
         () => {
           refreshDashboard();
-          if (state.activeTab === "my") refreshMyReservations();
         }
       )
       .subscribe();
-  }
-
-  function unsubscribeRealtime() {
-    if (state.realtimeChannel) {
-      supabaseClient.removeChannel(state.realtimeChannel);
-      state.realtimeChannel = null;
-    }
   }
 
   // ===================== 모달 공통 =====================
