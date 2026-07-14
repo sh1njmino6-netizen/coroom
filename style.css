@@ -29,97 +29,11 @@ button {
   cursor: pointer;
 }
 
-/* ===================== Auth ===================== */
-.auth-wrap {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.auth-card {
-  width: 360px;
-  background: #fff;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 32px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-}
-
 .logo {
   margin: 0;
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--color-primary);
-  text-align: center;
-}
-
-.tagline {
-  text-align: center;
-  color: var(--color-muted);
-  margin: 4px 0 24px;
-  font-size: 13px;
-}
-
-.auth-tabs {
-  display: flex;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.auth-tab-btn {
-  flex: 1;
-  padding: 10px 0;
-  border: none;
-  background: none;
-  font-size: 14px;
-  color: var(--color-muted);
-  border-bottom: 2px solid transparent;
-}
-
-.auth-tab-btn.active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
-  font-weight: 600;
-}
-
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.auth-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--color-muted);
-}
-
-.auth-form input {
-  padding: 9px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.auth-message {
-  margin-top: 14px;
-  font-size: 13px;
-  text-align: center;
-  padding: 8px;
-  border-radius: 6px;
-}
-
-.auth-message.error {
-  background: #fdeaea;
-  color: var(--color-danger);
-}
-
-.auth-message.success {
-  background: #e8f5e9;
-  color: #2a7a2f;
 }
 
 /* ===================== Buttons ===================== */
@@ -197,38 +111,6 @@ button {
   border-radius: 6px;
   padding: 5px 8px;
   font-size: 13px;
-}
-
-.tabs {
-  display: flex;
-  gap: 4px;
-}
-
-.tab-btn {
-  border: 1px solid var(--color-border);
-  background: #fff;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--color-muted);
-}
-
-.tab-btn.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #fff;
-  font-weight: 600;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.user-label {
-  font-size: 13px;
-  color: var(--color-muted);
 }
 
 /* ===================== Main / Views ===================== */
@@ -411,53 +293,6 @@ main {
 .room-color-4 { background: #8a6fd8; }
 .room-color-5 { background: #e0577a; }
 .room-color-6 { background: #5aab4e; }
-
-/* ===================== My Reservations Table ===================== */
-.my-res-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.my-res-table th, .my-res-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 13px;
-  text-align: left;
-}
-
-.my-res-table th {
-  background: #f8f9fb;
-  color: var(--color-muted);
-  font-weight: 600;
-}
-
-.status-badge {
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.status-confirmed {
-  background: #e6f0ff;
-  color: var(--color-primary);
-}
-
-.status-cancelled {
-  background: #f1f1f1;
-  color: var(--color-muted);
-}
-
-.empty-msg {
-  color: var(--color-muted);
-  font-size: 13px;
-  padding: 20px;
-  text-align: center;
-}
 
 /* ===================== Modal ===================== */
 .modal-overlay {
